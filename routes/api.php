@@ -10,3 +10,5 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::apiResource('tasks', TaskController::class);
+Route::get('tasks/{id}', [TaskController::class, 'show']);
+Route::patch('tasks/{id}/complete', [TaskController::class, 'complete']);
