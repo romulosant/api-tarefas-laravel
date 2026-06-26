@@ -8,12 +8,32 @@ use App\Http\Requests\UpdateTaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Status;
 use App\Models\Task;
+use Illuminate\Http\Request;
 
 class taskController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $tasks = Task::with('status')->get();
+        $query = Task::with('status');
+
+        //filtro por status
+        if($request->filled('status_id')){
+            $query->where('status_id',$request->status_id);
+        }
+
+        //filtro por titulo 
+        if($request->filled('title')){
+            $query->where('title','like', '%' . $request->title . '%');
+        }
+
+        //filtro por data
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $request->date);
+        }
+
+        $query->orderBy('created_at','desc');
+
+        $tasks = $query->paginate(10);
 
         return TaskResource::collection($tasks);
     }
