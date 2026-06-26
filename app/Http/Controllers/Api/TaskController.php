@@ -5,17 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
-use App\Models\Task;
+use App\Http\Resources\TaskResource;
 use App\Models\Status;
-use Illuminate\Http\Request;
+use App\Models\Task;
 
 class taskController extends Controller
 {
     public function index()
     {
-        $task = task::with('status')->get();
+        $tasks = Task::with('status')->get();
 
-        return response()->json($task);
+        return TaskResource::collection($tasks);
     }
 
     public function store(StoreTaskRequest $request)
@@ -28,62 +28,47 @@ class taskController extends Controller
 
         $task = $task->load('status');
 
-        return response()->json($task, 201);
+        return (new TaskResource($task))->response()->setStatusCode(201);
     }
 
     public function show(int $id)
     {
         $task = Task::with('status')->findOrFail($id);
 
-        if (!$task) {
-            return response()->json(['message' => 'Task not found'], 404);
-        }
-
-        return response()->json($task);
+        return new TaskResource($task);
     }
 
     public function update(UpdateTaskRequest $request, int $id)
     {
-        $task = Task::with('status')->findOrFail($id);
+        $task = Task::findOrFail($id);
 
-        if (!$task) {
-            return response()->json(['message' => 'Task not found'], 404);
-        }
+        $data = $request->validated();
 
-        $task->update([
-            'title' => $request->title,
-            'description' => $request->description,
-            'status_id' => $request->status_id ?? Status::PENDING
-        ]);
+        $task->update($data);
 
-        return response()->json($task->fresh()->load('status'));
+        return new TaskResource(
+            $task->fresh()->load('status')
+        );
     }
-
 
     public function destroy(int $id)
     {
-        $task = Task::with('status')->findOrFail($id);
-
-        if (!$task) {
-            return response()->json(['message' => 'Task not found'], 404);
-        }
+        $task = Task::findOrFail($id);
 
         $task->delete();
 
-        return response()->json(['message' => 'Task deleted successfully'], 204);
+        return response()->noContent();
     }
-
-
 
     public function complete(int $id)
     {
         $task = Task::findOrFail($id);
 
         $task->update([
-            'status_id' => Status::DONE
+            'status_id' => Status::DONE,
         ]);
 
-        return response()->json(
+        return new TaskResource(
             $task->fresh()->load('status')
         );
     }
