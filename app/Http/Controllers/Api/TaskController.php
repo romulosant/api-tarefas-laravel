@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreTaskRequest;
+use App\Http\Requests\UpdateTaskRequest;
 use App\Models\Task;
 use App\Models\Status;
 use Illuminate\Http\Request;
@@ -16,13 +18,15 @@ class taskController extends Controller
         return response()->json($task);
     }
 
-    public function store(Request $request)
+    public function store(StoreTaskRequest $request)
     {
-        $task = Task::create([
-            'title' => $request->title,
-            'description' => $request->description,
-            'status_id' => $request->status_id ?? Status::PENDING
-        ]);
+        $data = $request->validated();
+
+        $data['status_id'] = $data['status_id'] ?? Status::PENDING;
+
+        $task = Task::create($data);
+
+        $task = $task->load('status');
 
         return response()->json($task, 201);
     }
@@ -38,7 +42,7 @@ class taskController extends Controller
         return response()->json($task);
     }
 
-    public function update(Request $request, int $id)
+    public function update(UpdateTaskRequest $request, int $id)
     {
         $task = Task::with('status')->findOrFail($id);
 
