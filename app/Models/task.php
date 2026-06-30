@@ -20,7 +20,6 @@ class Task extends Model
         'status_id'
     ];
 
-    // UMA task pertence a UM status
     public function status()
     {
         return $this->belongsTo(status::class);

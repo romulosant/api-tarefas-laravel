@@ -15,41 +15,58 @@ class taskController extends Controller
     public function index(Request $request)
     {
         $query = Task::with('status');
-
-        //filtro por status
+    
+        // Filtro por status
         if($request->filled('status_id')){
-            $query->where('status_id',$request->status_id);
+            $query->where('status_id', $request->status_id);
         }
-
-        //filtro por titulo 
+    
+        // Filtro por título 
         if($request->filled('title')){
-            $query->where('title','like', '%' . $request->title . '%');
+            $query->where('title', 'like', '%' . $request->title . '%');
         }
-
-        //filtro por data
+    
+        // Filtro por data
         if ($request->filled('date')) {
             $query->whereDate('created_at', $request->date);
         }
-
-        $query->orderBy('created_at','desc');
-
-        $tasks = $query->paginate(10);
-
-        return TaskResource::collection($tasks);
+    
+        $query->orderBy('created_at', 'desc');
+    
+        $tasks = $query->paginate(15);
+    
+        // estruturando as mensagens
+        return response()->json([
+            'message' => 'Tarefas listadas com sucesso',
+            'data' => TaskResource::collection($tasks),
+            'pagination' => [
+                'current_page' => $tasks->currentPage(),
+                'per_page' => $tasks->perPage(),
+                'total' => $tasks->total(),
+                'last_page' => $tasks->lastPage(),
+            ]
+        ]);
     }
 
     public function store(StoreTaskRequest $request)
-    {
-        $data = $request->validated();
-
-        $data['status_id'] = $data['status_id'] ?? Status::PENDING;
-
-        $task = Task::create($data);
-
-        $task = $task->load('status');
-
-        return (new TaskResource($task))->response()->setStatusCode(201);
-    }
+{
+    $data = $request->validated();
+    
+    // Se não informar status, usa PENDING
+    $data['status_id'] = $data['status_id'] ?? Status::PENDING;
+    
+    // Cria tarefa
+    $task = Task::create($data);
+    
+    // Carrega relacionamento status
+    $task = $task->load('status');
+    
+    // Retorna a TAREFA CRIADA (não coleção)
+    return response()->json([
+        'message' => 'Tarefa criada com sucesso',
+        'data' => new TaskResource($task)  // ✅ new, não collection
+    ], 201);  // ✅ Status 201 (Created)
+}
 
     public function show(int $id)
     {
