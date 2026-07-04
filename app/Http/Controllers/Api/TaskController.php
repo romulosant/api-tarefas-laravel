@@ -8,88 +8,98 @@ use App\Http\Requests\UpdateTaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Status;
 use App\Models\Task;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
-class taskController extends Controller
+class TaskController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $query = Task::with('status');
 
-        //filtro por status
-        if($request->filled('status_id')){
-            $query->where('status_id',$request->status_id);
+        // Filtro por status
+        if ($request->filled('status_id')) {
+            $query->where('status_id', $request->status_id);
         }
 
-        //filtro por titulo 
-        if($request->filled('title')){
-            $query->where('title','like', '%' . $request->title . '%');
+        // Filtro por título
+        if ($request->filled('title')) {
+            $query->where('title', 'like', '%'.$request->title.'%');
         }
 
-        //filtro por data
+        // Filtro por data
         if ($request->filled('date')) {
             $query->whereDate('created_at', $request->date);
         }
 
-        $query->orderBy('created_at','desc');
+        $tasks = $query->orderBy('created_at', 'desc')->paginate(15);
 
-        $tasks = $query->paginate(10);
-
-        return TaskResource::collection($tasks);
+        return response()->json([
+            'message' => 'Tarefas listadas com sucesso',
+            'data' => TaskResource::collection($tasks),
+            'pagination' => [
+                'current_page' => $tasks->currentPage(),
+                'per_page' => $tasks->perPage(),
+                'total' => $tasks->total(),
+                'last_page' => $tasks->lastPage(),
+            ],
+        ]);
     }
 
-    public function store(StoreTaskRequest $request)
+    public function store(StoreTaskRequest $request): JsonResponse
     {
         $data = $request->validated();
 
+        // Se não informar status, usa PENDING
         $data['status_id'] = $data['status_id'] ?? Status::PENDING;
 
-        $task = Task::create($data);
+        $task = Task::create($data)->load('status');
 
-        $task = $task->load('status');
-
-        return (new TaskResource($task))->response()->setStatusCode(201);
+        return response()->json([
+            'message' => 'Tarefa criada com sucesso',
+            'data' => new TaskResource($task),
+        ], 201);
     }
 
-    public function show(int $id)
+    public function show(Task $task): JsonResponse
     {
-        $task = Task::with('status')->findOrFail($id);
+        $task->load('status');
 
-        return new TaskResource($task);
+        return response()->json([
+            'message' => 'Tarefa encontrada com sucesso',
+            'data' => new TaskResource($task),
+        ]);
     }
 
-    public function update(UpdateTaskRequest $request, int $id)
+    public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
-        $task = Task::findOrFail($id);
+        $task->update($request->validated());
 
-        $data = $request->validated();
-
-        $task->update($data);
-
-        return new TaskResource(
-            $task->fresh()->load('status')
-        );
+        return response()->json([
+            'message' => 'Tarefa atualizada com sucesso',
+            'data' => new TaskResource($task->fresh()->load('status')),
+        ]);
     }
 
-    public function destroy(int $id)
+    public function destroy(Task $task): Response
     {
-        $task = Task::findOrFail($id);
-
         $task->delete();
 
         return response()->noContent();
     }
 
-    public function complete(int $id)
+    public function complete(Task $task): JsonResponse
     {
-        $task = Task::findOrFail($id);
+        $task->status_id = Status::DONE;
+        $task->save();
 
-        $task->update([
-            'status_id' => Status::DONE,
+        $task->refresh();
+        $task->load('status');
+
+        return response()->json([
+            'message' => 'Tarefa concluída com sucesso',
+            'data' => new TaskResource($task),
         ]);
-
-        return new TaskResource(
-            $task->fresh()->load('status')
-        );
     }
 }
