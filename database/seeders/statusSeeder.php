@@ -3,7 +3,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Status;
-class statusSeeder extends Seeder
+class StatusSeeder extends Seeder
 {
     /**
      * Run the database seeds.
